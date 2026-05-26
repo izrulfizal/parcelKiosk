@@ -258,10 +258,23 @@ class LanguageMixin:
         text = TRANSLATIONS[language][key]
         return text.format(**kwargs) if kwargs else text
 
+    def bt(self, key, **kwargs):
+        english = TRANSLATIONS["en"][key]
+        mandarin = TRANSLATIONS["zh"][key]
+        english = english.format(**kwargs) if kwargs else english
+        mandarin = mandarin.format(**kwargs) if kwargs else mandarin
+        return f"{english}\n{mandarin}"
+
+    def bp(self, key, **kwargs):
+        english = TRANSLATIONS["en"][key]
+        mandarin = TRANSLATIONS["zh"][key]
+        english = english.format(**kwargs) if kwargs else english
+        mandarin = mandarin.format(**kwargs) if kwargs else mandarin
+        return f"{english} / {mandarin}"
+
 
 class ScanPage(QWidget, LanguageMixin):
     cancel_requested = pyqtSignal()
-    language_toggle_requested = pyqtSignal()
 
     def __init__(self, language="en"):
         super().__init__()
@@ -296,38 +309,18 @@ class ScanPage(QWidget, LanguageMixin):
         self.layout_main.setSpacing(20)
         self.layout_main.setAlignment(Qt.AlignmentFlag.AlignTop)
 
-        top_bar = QHBoxLayout()
-        top_bar.addStretch(1)
-        self.language_btn = QPushButton()
-        self.language_btn.setFixedSize(110, 44)
-        self.language_btn.setStyleSheet(
-            """
-            QPushButton {
-                background: white;
-                border-radius: 14px;
-                font-weight: bold;
-                font-size: 14px;
-                border: 2px solid #bbf7d0;
-                color: #052e16;
-            }
-            QPushButton:hover {
-                background: #f0fdf4;
-            }
-            """
-        )
-        self.language_btn.clicked.connect(self.language_toggle_requested.emit)
-        top_bar.addWidget(self.language_btn)
-        self.layout_main.addLayout(top_bar)
-
         self.title_label = QLabel()
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.title_label.setWordWrap(True)
         self.title_label.setFont(QFont("Arial", 28, QFont.Weight.Bold))
         self.title_label.setStyleSheet(f"color: {TEXT_MAIN};")
 
         self.subtitle_label = QLabel()
         self.subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.subtitle_label.setWordWrap(True)
         self.subtitle_label.setFont(QFont("Arial", 14))
         self.subtitle_label.setStyleSheet(f"color: {TEXT_SUB};")
+        self.subtitle_label.hide()
 
         scan_area = QFrame()
         scan_area.setStyleSheet(
@@ -346,6 +339,7 @@ class ScanPage(QWidget, LanguageMixin):
 
         self.camera_label = QLabel()
         self.camera_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.camera_label.setWordWrap(True)
         self.camera_label.setMinimumHeight(500)
         self.camera_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.camera_label.setScaledContents(False)
@@ -361,6 +355,7 @@ class ScanPage(QWidget, LanguageMixin):
 
         self.status = QLabel()
         self.status.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.status.setWordWrap(True)
         self.status.setFont(QFont("Arial", 15))
         self.status.setStyleSheet(
             f"""
@@ -381,7 +376,7 @@ class ScanPage(QWidget, LanguageMixin):
         buttons.setSpacing(16)
 
         self.next_btn = QPushButton()
-        self.next_btn.setFixedSize(220, 55)
+        self.next_btn.setFixedSize(220, 68)
         self.next_btn.setStyleSheet(
             f"""
             QPushButton {{
@@ -399,7 +394,7 @@ class ScanPage(QWidget, LanguageMixin):
         self.next_btn.clicked.connect(self.handle_next)
 
         self.cancel_btn = QPushButton()
-        self.cancel_btn.setFixedSize(180, 55)
+        self.cancel_btn.setFixedSize(180, 68)
         self.cancel_btn.setStyleSheet(
             """
             QPushButton {
@@ -417,7 +412,6 @@ class ScanPage(QWidget, LanguageMixin):
         buttons.addWidget(self.cancel_btn)
 
         self.layout_main.addWidget(self.title_label)
-        self.layout_main.addWidget(self.subtitle_label)
         self.layout_main.addWidget(scan_area, stretch=1)
         self.layout_main.addLayout(buttons)
 
@@ -426,13 +420,12 @@ class ScanPage(QWidget, LanguageMixin):
 
     def set_language(self, language):
         self.language = language
-        self.language_btn.setText(self.tt("language_button"))
-        self.cancel_btn.setText(self.tt("cancel"))
+        self.cancel_btn.setText(self.bt("cancel"))
         self.apply_language()
 
     def apply_language(self):
-        self.camera_label.setText(self.tt("camera_opening"))
-        self.status.setText(self.tt("camera_live"))
+        self.camera_label.setText(self.bt("camera_opening"))
+        self.status.setText(self.bt("camera_live"))
 
     def handle_next(self):
         pass
@@ -454,8 +447,8 @@ class ScanPage(QWidget, LanguageMixin):
 
         self.camera = self.open_camera()
         if not self.camera.isOpened():
-            self.camera_label.setText(self.tt("unable_open_camera"))
-            self.status.setText(self.tt("camera_unavailable"))
+            self.camera_label.setText(self.bt("unable_open_camera"))
+            self.status.setText(self.bt("camera_unavailable"))
             return
 
         self.timer.start(30)
@@ -485,7 +478,7 @@ class ScanPage(QWidget, LanguageMixin):
             self.camera.release()
             self.camera = None
         self.camera_label.clear()
-        self.camera_label.setText(self.tt("camera_stopped"))
+        self.camera_label.setText(self.bt("camera_stopped"))
 
     def update_frame(self):
         if self.camera is None:
@@ -493,7 +486,7 @@ class ScanPage(QWidget, LanguageMixin):
 
         ok, frame = self.camera.read()
         if not ok:
-            self.status.setText(self.tt("camera_failed"))
+            self.status.setText(self.bt("camera_failed"))
             return
 
         self.current_frame = frame
@@ -553,7 +546,6 @@ class ScanPage(QWidget, LanguageMixin):
 class ParcelEntryPage(QWidget, LanguageMixin):
     submitted = pyqtSignal(str)
     cancel_requested = pyqtSignal()
-    language_toggle_requested = pyqtSignal()
 
     def __init__(self, mode, language="en"):
         super().__init__()
@@ -584,37 +576,18 @@ class ParcelEntryPage(QWidget, LanguageMixin):
         layout.setSpacing(24)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        top_bar = QHBoxLayout()
-        top_bar.addStretch(1)
-        self.language_btn = QPushButton()
-        self.language_btn.setFixedSize(110, 44)
-        self.language_btn.setStyleSheet(
-            """
-            QPushButton {
-                background: white;
-                border-radius: 14px;
-                font-weight: bold;
-                font-size: 14px;
-                border: 2px solid #bbf7d0;
-                color: #052e16;
-            }
-            QPushButton:hover {
-                background: #f0fdf4;
-            }
-            """
-        )
-        self.language_btn.clicked.connect(self.language_toggle_requested.emit)
-        top_bar.addWidget(self.language_btn)
-
         self.title = QLabel()
         self.title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.title.setWordWrap(True)
         self.title.setFont(QFont("Arial", 28, QFont.Weight.Bold))
         self.title.setStyleSheet(f"color: {TEXT_MAIN};")
 
         self.subtitle = QLabel()
         self.subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.subtitle.setWordWrap(True)
         self.subtitle.setFont(QFont("Arial", 14))
         self.subtitle.setStyleSheet(f"color: {TEXT_SUB};")
+        self.subtitle.hide()
 
         self.parcel_input = QLineEdit()
         self.parcel_input.setMaxLength(128)
@@ -635,6 +608,7 @@ class ParcelEntryPage(QWidget, LanguageMixin):
 
         self.status = QLabel()
         self.status.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.status.setWordWrap(True)
         self.status.setFont(QFont("Arial", 15))
         self.status.setStyleSheet(
             f"""
@@ -650,7 +624,7 @@ class ParcelEntryPage(QWidget, LanguageMixin):
         buttons.setSpacing(16)
 
         self.submit_btn = QPushButton()
-        self.submit_btn.setFixedSize(220, 55)
+        self.submit_btn.setFixedSize(220, 68)
         self.submit_btn.setStyleSheet(
             f"""
             QPushButton {{
@@ -668,7 +642,7 @@ class ParcelEntryPage(QWidget, LanguageMixin):
         self.submit_btn.clicked.connect(self.handle_submit)
 
         self.cancel_btn = QPushButton()
-        self.cancel_btn.setFixedSize(180, 55)
+        self.cancel_btn.setFixedSize(180, 68)
         self.cancel_btn.setStyleSheet(
             """
             QPushButton {
@@ -685,9 +659,7 @@ class ParcelEntryPage(QWidget, LanguageMixin):
         buttons.addWidget(self.submit_btn)
         buttons.addWidget(self.cancel_btn)
 
-        layout.addLayout(top_bar)
         layout.addWidget(self.title)
-        layout.addWidget(self.subtitle)
         layout.addWidget(self.parcel_input)
         layout.addWidget(self.status)
         layout.addLayout(buttons)
@@ -698,25 +670,24 @@ class ParcelEntryPage(QWidget, LanguageMixin):
 
     def set_language(self, language):
         self.language = language
-        self.language_btn.setText(self.tt("language_button"))
-        self.parcel_input.setPlaceholderText(self.tt("parcel_placeholder"))
-        self.cancel_btn.setText(self.tt("cancel"))
-        self.title.setText(self.tt("enter_parcel_number"))
-        self.subtitle.setText(self.tt("arrival_subtitle" if self.mode == "arrival" else "collection_subtitle"))
-        self.submit_btn.setText(self.tt("save" if self.mode == "arrival" else "next"))
-        self.status.setText(self.tt("enter_parcel_continue"))
+        self.parcel_input.setPlaceholderText(self.bp("parcel_placeholder"))
+        self.cancel_btn.setText(self.bt("cancel"))
+        self.title.setText(self.bt("enter_parcel_number"))
+        self.subtitle.setText(self.bt("arrival_subtitle" if self.mode == "arrival" else "collection_subtitle"))
+        self.submit_btn.setText(self.bt("save" if self.mode == "arrival" else "next"))
+        self.status.setText(self.bt("enter_parcel_continue"))
 
     def handle_submit(self):
         value = self.parcel_input.text().strip()
         if not value:
-            self.status.setText(self.tt("parcel_required"))
+            self.status.setText(self.bt("parcel_required"))
             return
-        self.status.setText(self.tt("parcel_entered", value=value))
+        self.status.setText(self.bt("parcel_entered", value=value))
         self.submitted.emit(value)
 
     def showEvent(self, event):
         self.parcel_input.clear()
-        self.status.setText(self.tt("enter_parcel_continue"))
+        self.status.setText(self.bt("enter_parcel_continue"))
         super().showEvent(event)
         self.parcel_input.setFocus(Qt.FocusReason.ActiveWindowFocusReason)
 
@@ -730,6 +701,7 @@ class CapturePage(ScanPage):
         self.photo_dir = os.path.join(APP_DIR, "captures")
         self.parcel_label = QLabel()
         self.parcel_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.parcel_label.setWordWrap(True)
         self.parcel_label.setFont(QFont("Arial", 15))
         self.parcel_label.setStyleSheet(f"color: {TEXT_MAIN}; font-weight: bold;")
         self.layout_main.insertWidget(4, self.parcel_label)
@@ -739,14 +711,14 @@ class CapturePage(ScanPage):
 
     def set_language(self, language):
         super().set_language(language)
-        self.title_label.setText(self.tt("take_student_photo"))
-        self.subtitle_label.setText(self.tt("capture_subtitle"))
-        self.next_btn.setText(self.tt("capture"))
-        self.parcel_label.setText(self.tt("camera_saving_as", parcel_id=self.parcel_number or "-"))
+        self.title_label.setText(self.bt("take_student_photo"))
+        self.subtitle_label.setText(self.bt("capture_subtitle"))
+        self.next_btn.setText(self.bt("capture"))
+        self.parcel_label.setText(self.bt("camera_saving_as", parcel_id=self.parcel_number or "-"))
 
     def set_parcel_number(self, parcel_number):
         self.parcel_number = parcel_number
-        self.parcel_label.setText(self.tt("camera_saving_as", parcel_id=self.parcel_number or "-"))
+        self.parcel_label.setText(self.bt("camera_saving_as", parcel_id=self.parcel_number or "-"))
 
     def sanitize_parcel_number(self):
         cleaned = "".join(ch for ch in self.parcel_number.strip() if ch.isalnum() or ch in ("-", "_"))
@@ -754,7 +726,7 @@ class CapturePage(ScanPage):
 
     def handle_next(self):
         if self.current_frame is None:
-            self.status.setText(self.tt("camera_frame_missing"))
+            self.status.setText(self.bt("camera_frame_missing"))
             return
 
         os.makedirs(self.photo_dir, exist_ok=True)
@@ -762,15 +734,15 @@ class CapturePage(ScanPage):
         filename = f"{self.sanitize_parcel_number()}_{timestamp}.jpg"
         output_path = os.path.join(self.photo_dir, filename)
         if not cv2.imwrite(output_path, self.current_frame):
-            self.status.setText(self.tt("camera_save_failed"))
+            self.status.setText(self.bt("camera_save_failed"))
             return
 
-        self.status.setText(self.tt("camera_saved", filename=filename))
+        self.status.setText(self.bt("camera_saved", filename=filename))
         self.captured.emit(output_path)
 
     def showEvent(self, event):
-        self.reset_scan_state(self.tt("camera_live"))
-        self.parcel_label.setText(self.tt("camera_saving_as", parcel_id=self.parcel_number or "-"))
+        self.reset_scan_state(self.bt("camera_live"))
+        self.parcel_label.setText(self.bt("camera_saving_as", parcel_id=self.parcel_number or "-"))
         super().showEvent(event)
 
 
@@ -778,7 +750,6 @@ class HomePage(QWidget, LanguageMixin):
     collection_requested = pyqtSignal()
     arrival_requested = pyqtSignal()
     admin_requested = pyqtSignal()
-    language_toggle_requested = pyqtSignal()
 
     def __init__(self, language="en"):
         super().__init__()
@@ -808,46 +779,29 @@ class HomePage(QWidget, LanguageMixin):
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.setSpacing(18)
 
-        top_bar = QHBoxLayout()
-        top_bar.addStretch(1)
-        self.language_btn = QPushButton()
-        self.language_btn.setFixedSize(110, 44)
-        self.language_btn.setStyleSheet(
-            """
-            QPushButton {
-                background: white;
-                border-radius: 14px;
-                font-weight: bold;
-                font-size: 14px;
-                border: 2px solid #bbf7d0;
-                color: #052e16;
-            }
-            QPushButton:hover {
-                background: #f0fdf4;
-            }
-            """
-        )
-        self.language_btn.clicked.connect(self.language_toggle_requested.emit)
-        top_bar.addWidget(self.language_btn)
-
         self.logo_holder = QWidget()
         self.logo_layout = QVBoxLayout(self.logo_holder)
         self.logo_layout.setContentsMargins(0, 0, 0, 0)
 
         self.title = QLabel()
+        self.title.setWordWrap(True)
         self.title.setFont(QFont("Arial", 36, QFont.Weight.Bold))
         self.title.setStyleSheet(f"color: {TEXT_MAIN};")
 
         self.subtitle = QLabel()
+        self.subtitle.setWordWrap(True)
         self.subtitle.setFont(QFont("Arial", 16))
         self.subtitle.setStyleSheet(f"color: {TEXT_SUB};")
+        self.subtitle.hide()
 
         self.note = QLabel()
+        self.note.setWordWrap(True)
         self.note.setFont(QFont("Arial", 13))
         self.note.setStyleSheet(f"color: {TEXT_SUB};")
+        self.note.hide()
 
         self.arrival_btn = QPushButton()
-        self.arrival_btn.setFixedSize(280, 68)
+        self.arrival_btn.setFixedSize(300, 82)
         self.arrival_btn.setStyleSheet(
             """
             QPushButton {
@@ -866,7 +820,7 @@ class HomePage(QWidget, LanguageMixin):
         self.arrival_btn.clicked.connect(self.arrival_requested.emit)
 
         self.collection_btn = QPushButton()
-        self.collection_btn.setFixedSize(280, 70)
+        self.collection_btn.setFixedSize(300, 82)
         self.collection_btn.setStyleSheet(
             f"""
             QPushButton {{
@@ -884,7 +838,7 @@ class HomePage(QWidget, LanguageMixin):
         self.collection_btn.clicked.connect(self.collection_requested.emit)
 
         self.admin_btn = QPushButton()
-        self.admin_btn.setFixedSize(280, 60)
+        self.admin_btn.setFixedSize(300, 74)
         self.admin_btn.setStyleSheet(
             """
             QPushButton {
@@ -902,11 +856,8 @@ class HomePage(QWidget, LanguageMixin):
         )
         self.admin_btn.clicked.connect(self.admin_requested.emit)
 
-        layout.addLayout(top_bar)
         layout.addWidget(self.logo_holder, alignment=Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.title, alignment=Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.subtitle, alignment=Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.note, alignment=Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.arrival_btn, alignment=Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.collection_btn, alignment=Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.admin_btn, alignment=Qt.AlignmentFlag.AlignCenter)
@@ -917,13 +868,12 @@ class HomePage(QWidget, LanguageMixin):
 
     def set_language(self, language):
         self.language = language
-        self.language_btn.setText(self.tt("language_button"))
-        self.title.setText(self.tt("app_title"))
-        self.subtitle.setText(self.tt("home_subtitle"))
-        self.note.setText(self.tt("home_note"))
-        self.arrival_btn.setText(self.tt("arrival_button"))
-        self.collection_btn.setText(self.tt("start_collection"))
-        self.admin_btn.setText(self.tt("admin_login"))
+        self.title.setText(self.bt("app_title"))
+        self.subtitle.setText(self.bt("home_subtitle"))
+        self.note.setText(self.bt("home_note"))
+        self.arrival_btn.setText(self.bt("arrival_button"))
+        self.collection_btn.setText(self.bt("start_collection"))
+        self.admin_btn.setText(self.bt("admin_login"))
 
         while self.logo_layout.count():
             item = self.logo_layout.takeAt(0)
@@ -936,7 +886,6 @@ class HomePage(QWidget, LanguageMixin):
 class AdminLoginPage(QWidget, LanguageMixin):
     login_requested = pyqtSignal(str)
     cancel_requested = pyqtSignal()
-    language_toggle_requested = pyqtSignal()
 
     def __init__(self, language="en"):
         super().__init__()
@@ -966,37 +915,18 @@ class AdminLoginPage(QWidget, LanguageMixin):
         layout.setSpacing(20)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        top_bar = QHBoxLayout()
-        top_bar.addStretch(1)
-        self.language_btn = QPushButton()
-        self.language_btn.setFixedSize(110, 44)
-        self.language_btn.setStyleSheet(
-            """
-            QPushButton {
-                background: white;
-                border-radius: 14px;
-                font-weight: bold;
-                font-size: 14px;
-                border: 2px solid #bbf7d0;
-                color: #052e16;
-            }
-            QPushButton:hover {
-                background: #f0fdf4;
-            }
-            """
-        )
-        self.language_btn.clicked.connect(self.language_toggle_requested.emit)
-        top_bar.addWidget(self.language_btn)
-
         self.title = QLabel()
         self.title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.title.setWordWrap(True)
         self.title.setFont(QFont("Arial", 28, QFont.Weight.Bold))
         self.title.setStyleSheet(f"color: {TEXT_MAIN};")
 
         self.subtitle = QLabel()
         self.subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.subtitle.setWordWrap(True)
         self.subtitle.setFont(QFont("Arial", 14))
         self.subtitle.setStyleSheet(f"color: {TEXT_SUB};")
+        self.subtitle.hide()
 
         self.password_input = QLineEdit()
         self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
@@ -1025,7 +955,7 @@ class AdminLoginPage(QWidget, LanguageMixin):
         buttons.setSpacing(16)
 
         self.login_btn = QPushButton()
-        self.login_btn.setFixedSize(220, 55)
+        self.login_btn.setFixedSize(220, 68)
         self.login_btn.setStyleSheet(
             f"""
             QPushButton {{
@@ -1043,7 +973,7 @@ class AdminLoginPage(QWidget, LanguageMixin):
         self.login_btn.clicked.connect(self.submit_login)
 
         self.cancel_btn = QPushButton()
-        self.cancel_btn.setFixedSize(180, 55)
+        self.cancel_btn.setFixedSize(180, 68)
         self.cancel_btn.setStyleSheet(
             """
             QPushButton {
@@ -1064,9 +994,7 @@ class AdminLoginPage(QWidget, LanguageMixin):
         buttons.addWidget(self.login_btn)
         buttons.addWidget(self.cancel_btn)
 
-        layout.addLayout(top_bar)
         layout.addWidget(self.title)
-        layout.addWidget(self.subtitle)
         layout.addWidget(self.password_input)
         layout.addWidget(self.status)
         layout.addLayout(buttons)
@@ -1077,12 +1005,11 @@ class AdminLoginPage(QWidget, LanguageMixin):
 
     def set_language(self, language):
         self.language = language
-        self.language_btn.setText(self.tt("language_button"))
-        self.title.setText(self.tt("admin_login_title"))
-        self.subtitle.setText(self.tt("admin_login_subtitle"))
-        self.password_input.setPlaceholderText(self.tt("admin_password_placeholder"))
-        self.login_btn.setText(self.tt("login"))
-        self.cancel_btn.setText(self.tt("back"))
+        self.title.setText(self.bt("admin_login_title"))
+        self.subtitle.setText(self.bt("admin_login_subtitle"))
+        self.password_input.setPlaceholderText(self.bp("admin_password_placeholder"))
+        self.login_btn.setText(self.bt("login"))
+        self.cancel_btn.setText(self.bt("back"))
 
     def submit_login(self):
         self.login_requested.emit(self.password_input.text())
@@ -1100,7 +1027,6 @@ class AdminLoginPage(QWidget, LanguageMixin):
 class AdminLogPage(QWidget, LanguageMixin):
     back_requested = pyqtSignal()
     home_requested = pyqtSignal()
-    language_toggle_requested = pyqtSignal()
 
     def __init__(self, store, language="en"):
         super().__init__()
@@ -1131,35 +1057,15 @@ class AdminLogPage(QWidget, LanguageMixin):
         layout.setContentsMargins(40, 40, 40, 40)
         layout.setSpacing(18)
 
-        top_bar = QHBoxLayout()
-        top_bar.addStretch(1)
-        self.language_btn = QPushButton()
-        self.language_btn.setFixedSize(110, 44)
-        self.language_btn.setStyleSheet(
-            """
-            QPushButton {
-                background: white;
-                border-radius: 14px;
-                font-weight: bold;
-                font-size: 14px;
-                border: 2px solid #bbf7d0;
-                color: #052e16;
-            }
-            QPushButton:hover {
-                background: #f0fdf4;
-            }
-            """
-        )
-        self.language_btn.clicked.connect(self.language_toggle_requested.emit)
-        top_bar.addWidget(self.language_btn)
-
         self.title = QLabel()
         self.title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.title.setWordWrap(True)
         self.title.setFont(QFont("Arial", 28, QFont.Weight.Bold))
         self.title.setStyleSheet(f"color: {TEXT_MAIN};")
 
         self.status = QLabel("")
         self.status.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.status.setWordWrap(True)
         self.status.setFont(QFont("Arial", 14))
         self.status.setStyleSheet(f"color: {TEXT_SUB};")
 
@@ -1215,7 +1121,7 @@ class AdminLogPage(QWidget, LanguageMixin):
         buttons.setSpacing(16)
 
         self.back_btn = QPushButton()
-        self.back_btn.setFixedSize(220, 55)
+        self.back_btn.setFixedSize(220, 68)
         self.back_btn.setStyleSheet(
             """
             QPushButton {
@@ -1234,7 +1140,7 @@ class AdminLogPage(QWidget, LanguageMixin):
         self.back_btn.clicked.connect(self.back_requested.emit)
 
         self.home_btn = QPushButton()
-        self.home_btn.setFixedSize(220, 55)
+        self.home_btn.setFixedSize(220, 68)
         self.home_btn.setStyleSheet(
             f"""
             QPushButton {{
@@ -1254,7 +1160,6 @@ class AdminLogPage(QWidget, LanguageMixin):
         buttons.addWidget(self.back_btn)
         buttons.addWidget(self.home_btn)
 
-        layout.addLayout(top_bar)
         layout.addWidget(self.title)
         layout.addWidget(self.status)
         layout.addWidget(self.search_input)
@@ -1267,18 +1172,17 @@ class AdminLogPage(QWidget, LanguageMixin):
 
     def set_language(self, language):
         self.language = language
-        self.language_btn.setText(self.tt("language_button"))
-        self.title.setText(self.tt("parcel_log"))
-        self.back_btn.setText(self.tt("back"))
-        self.home_btn.setText(self.tt("home"))
-        self.search_input.setPlaceholderText(self.tt("search_placeholder"))
+        self.title.setText(self.bt("parcel_log"))
+        self.back_btn.setText(self.bt("back"))
+        self.home_btn.setText(self.bt("home"))
+        self.search_input.setPlaceholderText(self.bp("search_placeholder"))
         self.table.setHorizontalHeaderLabels(
             [
-                self.tt("table_number"),
-                self.tt("table_parcel_id"),
-                self.tt("table_timestamp"),
-                self.tt("table_photo_directory"),
-                self.tt("table_status"),
+                self.bt("table_number"),
+                self.bt("table_parcel_id"),
+                self.bt("table_timestamp"),
+                self.bt("table_photo_directory"),
+                self.bt("table_status"),
             ]
         )
         self.refresh()
@@ -1288,7 +1192,7 @@ class AdminLogPage(QWidget, LanguageMixin):
             self.records = self.store.read_records()
         except Exception as exc:
             self.table.setRowCount(0)
-            self.status.setText(self.tt("records_load_failed", error=exc))
+            self.status.setText(self.bt("records_load_failed", error=exc))
             return
 
         self.apply_filter()
@@ -1323,7 +1227,7 @@ class AdminLogPage(QWidget, LanguageMixin):
         self.table.setSortingEnabled(True)
 
         status_key = "records_filtered_count" if query else "records_count"
-        self.status.setText(self.tt(status_key, count=len(filtered_records)))
+        self.status.setText(self.bt(status_key, count=len(filtered_records)))
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -1332,7 +1236,6 @@ class AdminLogPage(QWidget, LanguageMixin):
 
 class SuccessPage(QWidget, LanguageMixin):
     done_requested = pyqtSignal()
-    language_toggle_requested = pyqtSignal()
 
     def __init__(self, language="en"):
         super().__init__()
@@ -1363,29 +1266,8 @@ class SuccessPage(QWidget, LanguageMixin):
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.setSpacing(18)
 
-        top_bar = QHBoxLayout()
-        top_bar.addStretch(1)
-        self.language_btn = QPushButton()
-        self.language_btn.setFixedSize(110, 44)
-        self.language_btn.setStyleSheet(
-            """
-            QPushButton {
-                background: white;
-                border-radius: 14px;
-                font-weight: bold;
-                font-size: 14px;
-                border: 2px solid #bbf7d0;
-                color: #052e16;
-            }
-            QPushButton:hover {
-                background: #f0fdf4;
-            }
-            """
-        )
-        self.language_btn.clicked.connect(self.language_toggle_requested.emit)
-        top_bar.addWidget(self.language_btn)
-
         self.title = QLabel()
+        self.title.setWordWrap(True)
         self.title.setFont(QFont("Arial", 32, QFont.Weight.Bold))
         self.title.setStyleSheet(f"color: {TEXT_MAIN};")
 
@@ -1393,9 +1275,10 @@ class SuccessPage(QWidget, LanguageMixin):
         self.details.setFont(QFont("Arial", 16))
         self.details.setStyleSheet(f"color: {TEXT_MAIN};")
         self.details.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.details.setWordWrap(True)
 
         self.done_btn = QPushButton()
-        self.done_btn.setFixedSize(260, 60)
+        self.done_btn.setFixedSize(260, 74)
         self.done_btn.setStyleSheet(
             f"""
             QPushButton {{
@@ -1408,7 +1291,6 @@ class SuccessPage(QWidget, LanguageMixin):
         )
         self.done_btn.clicked.connect(self.done_requested.emit)
 
-        layout.addLayout(top_bar)
         layout.addWidget(self.title)
         layout.addWidget(self.details)
         layout.addWidget(self.done_btn)
@@ -1419,9 +1301,8 @@ class SuccessPage(QWidget, LanguageMixin):
 
     def set_language(self, language):
         self.language = language
-        self.language_btn.setText(self.tt("language_button"))
-        self.title.setText(self.tt("success_title"))
-        self.done_btn.setText(self.tt("home"))
+        self.title.setText(self.bt("success_title"))
+        self.done_btn.setText(self.bt("home"))
         if self.record:
             self.set_record(self.record)
 
@@ -1431,11 +1312,11 @@ class SuccessPage(QWidget, LanguageMixin):
         self.details.setText(
             "\n".join(
                 [
-                    self.tt("success_number", value=record.get("Number", "-")),
-                    self.tt("success_parcel_id", value=record.get("Parcel ID", "-")),
-                    self.tt("success_timestamp", value=record.get("Timestamp", "-")),
-                    self.tt("success_status", value=record.get("Status", "-")),
-                    self.tt("success_photo", value=photo_value),
+                    self.bt("success_number", value=record.get("Number", "-")),
+                    self.bt("success_parcel_id", value=record.get("Parcel ID", "-")),
+                    self.bt("success_timestamp", value=record.get("Timestamp", "-")),
+                    self.bt("success_status", value=record.get("Status", "-")),
+                    self.bt("success_photo", value=photo_value),
                 ]
             )
         )
@@ -1492,29 +1373,6 @@ class MainWindow(QMainWindow):
         self.capture_page.cancel_requested.connect(self.go_home)
         self.success_page.done_requested.connect(self.go_home)
 
-        for page in [
-            self.home,
-            self.admin_login,
-            self.admin_logs,
-            self.arrival_page,
-            self.collection_page,
-            self.capture_page,
-            self.success_page,
-        ]:
-            if hasattr(page, "language_toggle_requested"):
-                page.language_toggle_requested.connect(self.toggle_language)
-
-    def toggle_language(self):
-        self.language = "zh" if self.language == "en" else "en"
-        self.setWindowTitle(TRANSLATIONS[self.language]["app_title"])
-        self.home.set_language(self.language)
-        self.admin_login.set_language(self.language)
-        self.admin_logs.set_language(self.language)
-        self.arrival_page.set_language(self.language)
-        self.collection_page.set_language(self.language)
-        self.capture_page.set_language(self.language)
-        self.success_page.set_language(self.language)
-
     def go_home(self):
         self.parcel_number = ""
         self.photo_path = ""
@@ -1525,7 +1383,7 @@ class MainWindow(QMainWindow):
         try:
             record = self.store.append_arrival(parcel_number, timestamp)
         except Exception as exc:
-            self.arrival_page.status.setText(self.arrival_page.tr("record_save_failed", error=exc))
+            self.arrival_page.status.setText(self.arrival_page.bt("record_save_failed", error=exc))
             return
         self.success_page.set_record(record)
         self.stack.setCurrentWidget(self.success_page)
@@ -1537,7 +1395,7 @@ class MainWindow(QMainWindow):
 
     def handle_admin_login(self, password):
         if password != ADMIN_PASSWORD:
-            self.admin_login.show_error(self.admin_login.tr("invalid_password"))
+            self.admin_login.show_error(self.admin_login.bt("invalid_password"))
             return
         self.stack.setCurrentWidget(self.admin_logs)
 
@@ -1548,12 +1406,12 @@ class MainWindow(QMainWindow):
             record = self.store.mark_taken(self.parcel_number, self.photo_path, timestamp)
         except ValueError:
             self.collection_page.status.setText(
-                self.collection_page.tr("parcel_not_found", parcel_id=self.parcel_number)
+                self.collection_page.bt("parcel_not_found", parcel_id=self.parcel_number)
             )
             self.stack.setCurrentWidget(self.collection_page)
             return
         except Exception as exc:
-            self.capture_page.status.setText(self.capture_page.tr("record_save_failed", error=exc))
+            self.capture_page.status.setText(self.capture_page.bt("record_save_failed", error=exc))
             return
 
         self.success_page.set_record(record)
