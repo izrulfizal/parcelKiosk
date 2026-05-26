@@ -76,6 +76,10 @@ TRANSLATIONS = {
         "records_count": "{count} record(s)",
         "records_filtered_count": "{count} record(s) shown",
         "records_load_failed": "Failed to load records: {error}",
+        "delete": "Delete",
+        "delete_success": "Record deleted",
+        "delete_failed": "Failed to delete record: {error}",
+        "delete_select_record": "Select a record to delete",
         "success_title": "Record Saved",
         "success_number": "Number: {value}",
         "success_parcel_id": "Parcel ID: {value}",
@@ -137,6 +141,10 @@ TRANSLATIONS = {
         "records_count": "共 {count} 条记录",
         "records_filtered_count": "显示 {count} 条记录",
         "records_load_failed": "读取记录失败：{error}",
+        "delete": "删除",
+        "delete_success": "记录已删除",
+        "delete_failed": "删除记录失败：{error}",
+        "delete_select_record": "请选择要删除的记录",
         "success_title": "记录已保存",
         "success_number": "编号：{value}",
         "success_parcel_id": "包裹编号：{value}",
@@ -250,6 +258,26 @@ class ParcelRecordStore:
                 self.write_records(records)
                 return record
         raise ValueError(parcel_id)
+
+    def delete_record(self, number):
+        records = self.read_records()
+        deleted_record = None
+        remaining_records = []
+
+        for record in records:
+            if deleted_record is None and record.get("Number") == str(number):
+                deleted_record = record
+                continue
+            remaining_records.append(record)
+
+        if deleted_record is None:
+            raise ValueError(number)
+
+        for index, record in enumerate(remaining_records, start=1):
+            record["Number"] = str(index)
+
+        self.write_records(remaining_records)
+        return deleted_record
 
 
 class LanguageMixin:
@@ -1033,6 +1061,7 @@ class AdminLogPage(QWidget, LanguageMixin):
         self.store = store
         self.language = language
         self.records = []
+        self.last_query = ""
         self.setStyleSheet(f"background-color: {APP_BG};")
 
         root = QVBoxLayout()
@@ -1157,8 +1186,27 @@ class AdminLogPage(QWidget, LanguageMixin):
         )
         self.home_btn.clicked.connect(self.home_requested.emit)
 
+        self.delete_btn = QPushButton()
+        self.delete_btn.setFixedSize(220, 68)
+        self.delete_btn.setStyleSheet(
+            """
+            QPushButton {
+                background: #dc2626;
+                color: white;
+                border-radius: 16px;
+                font-weight: bold;
+                font-size: 15px;
+            }
+            QPushButton:hover {
+                background: #b91c1c;
+            }
+            """
+        )
+        self.delete_btn.clicked.connect(self.delete_selected_record)
+
         buttons.addWidget(self.back_btn)
         buttons.addWidget(self.home_btn)
+        buttons.addWidget(self.delete_btn)
 
         layout.addWidget(self.title)
         layout.addWidget(self.status)
@@ -1175,6 +1223,7 @@ class AdminLogPage(QWidget, LanguageMixin):
         self.title.setText(self.bt("parcel_log"))
         self.back_btn.setText(self.bt("back"))
         self.home_btn.setText(self.bt("home"))
+        self.delete_btn.setText(self.bt("delete"))
         self.search_input.setPlaceholderText(self.bp("search_placeholder"))
         self.table.setHorizontalHeaderLabels(
             [
@@ -1199,6 +1248,7 @@ class AdminLogPage(QWidget, LanguageMixin):
 
     def apply_filter(self):
         query = self.search_input.text().strip().lower()
+        self.last_query = query
         if query:
             filtered_records = [
                 record
@@ -1228,6 +1278,36 @@ class AdminLogPage(QWidget, LanguageMixin):
 
         status_key = "records_filtered_count" if query else "records_count"
         self.status.setText(self.bt(status_key, count=len(filtered_records)))
+
+    def delete_selected_record(self):
+        selected_row = self.table.currentRow()
+        if selected_row < 0:
+            self.status.setText(self.bt("delete_select_record"))
+            return
+
+        number_item = self.table.item(selected_row, 0)
+        photo_item = self.table.item(selected_row, 3)
+        if number_item is None:
+            self.status.setText(self.bt("delete_select_record"))
+            return
+
+        record_number = number_item.text().strip()
+        photo_path = photo_item.text().strip() if photo_item is not None else ""
+
+        try:
+            deleted_record = self.store.delete_record(record_number)
+            file_to_delete = deleted_record.get("Photo Directory") or photo_path
+            if file_to_delete and os.path.exists(file_to_delete):
+                os.remove(file_to_delete)
+        except Exception as exc:
+            self.status.setText(self.bt("delete_failed", error=exc))
+            return
+
+        self.search_input.blockSignals(True)
+        self.search_input.setText("")
+        self.search_input.blockSignals(False)
+        self.refresh()
+        self.status.setText(self.bt("delete_success"))
 
     def showEvent(self, event):
         super().showEvent(event)
